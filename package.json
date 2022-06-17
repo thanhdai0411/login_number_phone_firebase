@@ -11,11 +11,14 @@
   },
   "dependencies": {
     "expo": "~45.0.0",
+    "expo-firebase-recaptcha": "~2.2.0",
     "expo-status-bar": "~1.3.0",
+    "firebase": "^9.0.0",
     "react": "17.0.2",
     "react-dom": "17.0.2",
     "react-native": "0.68.2",
-    "react-native-web": "0.17.7"
+    "react-native-web": "0.17.7",
+    "react-native-webview": "11.18.1"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9"
