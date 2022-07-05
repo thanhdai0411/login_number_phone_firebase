@@ -9,96 +9,69 @@ import {
     ActivityIndicator,
     Platform,
 } from 'react-native';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FirebaseRecaptcha from 'expo-firebase-recaptcha';
-import { initializeApp } from 'firebase/app';
-import { getAuth, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
-
-// PROVIDE VALID FIREBASE >=9.x.x CONFIG HERE
-// https://firebase.google.com/docs/web/setup
-const FIREBASE_CONFIG = {
-    apiKey: 'AIzaSyCNiYovmpPqCN6t9GQp9LslA8ecnpuwiq0',
-    authDomain: 'apppoint-352909.firebaseapp.com',
-    projectId: 'apppoint-352909',
-    storageBucket: 'apppoint-352909.appspot.com',
-    messagingSenderId: '144043617238',
-    appId: '1:144043617238:web:4ca4529581a24533b19277',
-};
-
-try {
-    if (FIREBASE_CONFIG.apiKey) {
-        initializeApp(FIREBASE_CONFIG);
-    }
-} catch (err) {
-    // ignore app already initialized error on snack
-}
-
-// Firebase references
-const auth = getAuth();
+import { firebaseConfig } from './firebase_cofig';
+import firebase from 'firebase/compat';
 
 export default function PhoneAuthScreen() {
     const recaptchaVerifier = React.useRef(null);
     const verificationCodeTextInput = React.useRef(null);
+
     const [phoneNumber, setPhoneNumber] = React.useState('');
     const [verificationId, setVerificationId] = React.useState('');
-    const [verifyError, setVerifyError] = React.useState();
-    const [verifyInProgress, setVerifyInProgress] = React.useState(false);
     const [verificationCode, setVerificationCode] = React.useState('');
-    const [confirmError, setConfirmError] = React.useState();
-    const [confirmInProgress, setConfirmInProgress] = React.useState(false);
-    const isConfigValid = !!FIREBASE_CONFIG.apiKey;
+
+    const sendVerification = () => {
+        const phoneProvider = new firebase.auth.PhoneAuthProvider();
+        phoneProvider
+            .verifyPhoneNumber(phoneNumber, recaptchaVerifier.current)
+            .then(setVerificationId);
+        setPhoneNumber('');
+    };
+    const confirmCode = () => {
+        const credential = firebase.auth.PhoneAuthProvider.credential(
+            verificationId,
+            verificationCode
+        );
+        firebase
+            .auth()
+            .signInWithCredential(credential)
+            .then(() => {
+                setVerificationCode('');
+                Alert.alert('Login successful');
+            })
+            .catch((error) => {
+                Alert.alert('Login fail');
+                // console.log(error);
+            });
+    };
 
     return (
         <View style={styles.container}>
             <View style={styles.content}>
                 <FirebaseRecaptcha.FirebaseRecaptchaVerifierModal
                     ref={recaptchaVerifier}
-                    firebaseConfig={FIREBASE_CONFIG}
+                    firebaseConfig={firebaseConfig}
                 />
                 <Text style={styles.title}>Firebase Phone Auth</Text>
-                <Text style={styles.subtitle}>using expo-firebase-recaptcha</Text>
                 <Text style={styles.text}>Enter phone number</Text>
                 <TextInput
                     style={styles.textInput}
-                    autoFocus={isConfigValid}
                     autoCompleteType="tel"
                     keyboardType="phone-pad"
                     textContentType="telephoneNumber"
                     placeholder="+1 999 999 9999"
-                    editable={!verificationId}
+                    // editable={!verificationId}
                     onChangeText={(phoneNumber) => setPhoneNumber(phoneNumber)}
                 />
                 <Button
                     title={`${verificationId ? 'Resend' : 'Send'} Verification Code`}
                     disabled={!phoneNumber}
-                    onPress={async () => {
-                        const phoneProvider = new PhoneAuthProvider(auth);
-                        try {
-                            setVerifyError(undefined);
-                            setVerifyInProgress(true);
-                            setVerificationId('');
-                            const verificationId = await phoneProvider.verifyPhoneNumber(
-                                phoneNumber,
-                                // @ts-ignore
-                                recaptchaVerifier.current
-                            );
-                            setVerifyInProgress(false);
-                            setVerificationId(verificationId);
-                            verificationCodeTextInput.current?.focus();
-                        } catch (err) {
-                            setVerifyError(err);
-                            setVerifyInProgress(false);
-                        }
-                    }}
+                    onPress={sendVerification}
                 />
-                {verifyError && (
-                    <Text style={styles.error}>{`Error: ${verifyError.message}`}</Text>
-                )}
-                {verifyInProgress && <ActivityIndicator style={styles.loader} />}
-                {verificationId ? (
-                    <Text style={styles.success}>
-                        A verification code has been sent to your phone
-                    </Text>
-                ) : undefined}
+
                 <Text style={styles.text}>Enter verification code</Text>
                 <TextInput
                     ref={verificationCodeTextInput}
@@ -112,41 +85,9 @@ export default function PhoneAuthScreen() {
                 <Button
                     title="Confirm Verification Code"
                     disabled={!verificationCode}
-                    onPress={async () => {
-                        try {
-                            setConfirmError(undefined);
-                            setConfirmInProgress(true);
-                            const credential = PhoneAuthProvider.credential(
-                                verificationId,
-                                verificationCode
-                            );
-                            const authResult = await signInWithCredential(
-                                auth,
-                                credential
-                            );
-                            setConfirmInProgress(false);
-                            setVerificationId('');
-                            setVerificationCode('');
-                            verificationCodeTextInput.current?.clear();
-                            Alert.alert('Phone authentication successful!');
-                        } catch (err) {
-                            setConfirmError(err);
-                            setConfirmInProgress(false);
-                        }
-                    }}
+                    onPress={confirmCode}
                 />
-                {confirmError && (
-                    <Text style={styles.error}>{`Error: ${confirmError.message}`}</Text>
-                )}
-                {confirmInProgress && <ActivityIndicator style={styles.loader} />}
             </View>
-            {!isConfigValid && (
-                <View style={styles.overlay} pointerEvents="none">
-                    <Text style={styles.overlayText}>
-                        To get started, set a valid FIREBASE_CONFIG in App.tsx.
-                    </Text>
-                </View>
-            )}
         </View>
     );
 }
